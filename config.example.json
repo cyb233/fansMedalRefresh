@@ -1,0 +1,52 @@
+{
+  "log": {
+    "enabled": true,
+    "level": "info",
+    "file": "log/fansMedalRefresh_{time:YYYY-MM-DD}.log"
+  },
+  "users": [
+    {
+      "cookie": "your_cookie",
+      "white_uids": [1, 2],
+      "black_uids": [3, 4]
+    }
+  ],
+  "like": {
+    "enabled": true,
+    "like_count": 30
+  },
+  "danmaku": {
+    "enabled": true,
+    "min_interval": 5,
+    "max_interval": 10,
+    "danmaku_count": 1,
+    "danmaku_list": [
+      "(⌒▽⌒).",
+      "（￣▽￣）.",
+      "(=・ω・=).",
+      "(｀・ω・´).",
+      "(〜￣△￣)〜.",
+      "(･∀･).",
+      "(°∀°)ﾉ.",
+      "(￣3￣).",
+      "╮(￣▽￣)╭.",
+      "_(:3」∠)_.",
+      "(^・ω・^ ).",
+      "(●￣(ｴ)￣●).",
+      "ε=ε=(ノ≧∇≦)ノ.",
+      "⁄(⁄ ⁄•⁄ω⁄•⁄ ⁄)⁄.",
+      "←◡←."
+    ]
+  },
+  "push": [
+    {
+      "provider_name": "telegram",
+      "proxies": {
+        "http": "socks5h://127.0.0.1:1080",
+        "https": "socks5h://127.0.0.1:1080"
+      },
+      "token": "your_token",
+      "userid": "your_userid"
+    }
+  ]
+}
