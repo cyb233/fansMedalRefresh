@@ -87,10 +87,15 @@ class PushConfig:
     proxies: dict[str, str] | None = field(
         default=None
     )  # 代理地址，格式如：{'http': 'socks5h://127.0.0.1:7890', 'https': 'socks5h://127.0.0.1:7890'}
+    use_markdown: bool = field(default=False)  # Markdown
     _config: dict = field(default_factory=dict)  # 其他配置项存储字典
 
     def __init__(
-        self, provider_name: str, proxies: dict[str, str] | None = None, **kwargs
+        self,
+        provider_name: str,
+        proxies: dict[str, str] | None = None,
+        use_markdown: bool = False,
+        **kwargs,
     ):
         """初始化推送配置
 
@@ -101,6 +106,7 @@ class PushConfig:
         """
         self.provider_name = provider_name
         self.proxies = proxies
+        self.use_markdown = use_markdown
         self._config = kwargs
 
     def get(self, key: str, default=None):
@@ -244,9 +250,14 @@ class Config:
                         continue
 
                     proxies = push_data.pop("proxies", None)
+
+                    use_markdown = push_data.pop("use_markdown", False)
                     # 创建 PushConfig 对象，将剩余的所有配置项作为 kwargs 传入
                     push_config = PushConfig(
-                        provider_name=provider_name, proxies=proxies, **push_data
+                        provider_name=provider_name,
+                        proxies=proxies,
+                        use_markdown=use_markdown,
+                        **push_data,
                     )
                     push_configs.append(push_config)
 

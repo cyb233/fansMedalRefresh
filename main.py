@@ -8,6 +8,8 @@ import asyncio
 import os
 import sys
 
+from requests import Response
+
 from src.config import Config
 from src.user import BiliUser
 from onepush import get_notifier
@@ -56,20 +58,30 @@ async def main():
     except Exception as e:
         log.exception(e)
         messageList.append(f"用户执行失败: {e}")
-    title = "点亮B站粉丝牌-执行结果推送"
-    content = "\n\n".join(messageList)
+    title = "点亮B站粉丝牌 执行结果推送"
+    content = "\n\n".join("\n".join(row) for row in messageList)
+    titlemd = f"*{title}*"
+    contentmd = "\n\n".join(
+        "_{}_".format(row[0]) + "".join(f"\n> {line}" for line in row[1:])
+        for row in messageList
+        if row
+    )
     # 推送
     log.info(f"推送内容：\n{title}\n\n{content}")
     for push_cfg in config.push:
         notifier = get_notifier(push_cfg.provider_name)
         if notifier:
-            res = notifier.notify(
+            res: Response = notifier.notify(
                 proxies=push_cfg.proxies,
                 **push_cfg._config,
-                title=title,
-                content=content,
+                title=titlemd if push_cfg.use_markdown else title,
+                content=contentmd if push_cfg.use_markdown else content,
             )
             log.info(f"使用 {push_cfg.provider_name} 推送结果: {res}")
+            if not res.ok:
+                log.warning(
+                    f"推送失败：{res.status_code} {res.reason}\nurl: {res.request.url}\nbody: {res.request.body}\nresp: {res.text}"
+                )
         else:
             log.warning(f"未知的推送提供商: {push_cfg.provider_name}")
 

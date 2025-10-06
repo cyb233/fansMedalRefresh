@@ -14,17 +14,17 @@ class BiliUser:
         self.config = config
         self.api = BiliApi(user_cfg, config)
 
-    async def start(self):
+    async def start(self) -> list[str]:
         msgs = []
         # 获取个人信息
         await self.api.get_user_info()
         logger.info(
-            f"开始执行用户{self.api.user_info['uname']}({self.api.user_info['mid']})"
+            f"开始执行用户{self.api.user_info['uname']}（{self.api.user_info['mid']}）"
         )
         # 获取所有粉丝牌
         await self.api.get_fans_medals()
         logger.info(f"已获取粉丝牌{len(self.api.medals)}个")
-        first_msg = f"处理{self.api.user_info['uname']}({self.api.user_info['mid']})的{len(self.api.medals)}个粉丝牌"
+        first_msg = f"处理{self.api.user_info['uname']}（{self.api.user_info['mid']}）的{len(self.api.medals)}个粉丝牌"
         # 遍历粉丝牌
         for medal in self.api.medals:
             # 处理黑白名单
@@ -85,6 +85,8 @@ class BiliUser:
         # 关闭会话
         await self.api.close()
         # 构造结果消息
-        res = first_msg + ("\n".join(msgs) if (msgs) else "没有需要点亮的粉丝牌")
-        logger.debug(f"执行结果为\n\n{res}")
-        return res
+        if not msgs:
+            msgs.append("没有需要点亮的粉丝牌")
+        msgs.insert(0, first_msg)
+        logger.debug("执行结果为\n\n{}", "\n".join(msgs))
+        return msgs
