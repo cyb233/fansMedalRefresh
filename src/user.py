@@ -85,7 +85,9 @@ class BiliUser:
         # 关闭会话
         await self.api.close()
         # 构造结果消息
-        if not msgs:
+        if msgs:
+            msgs.append(f"共点亮{len(msgs)}个粉丝牌")
+        else:
             msgs.append("没有需要点亮的粉丝牌")
         msgs.insert(0, first_msg)
         logger.debug("执行结果为\n\n{}", "\n".join(msgs))
