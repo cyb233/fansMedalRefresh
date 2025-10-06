@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 import asyncio
 import re
 from aiohttp import ClientSession, ClientTimeout, ClientError
@@ -33,13 +34,15 @@ def retry(tries=3, interval=1):
                         )
                         raise e
                     else:
-                        # log.error(f"API {urlparse(args[1]).path} 调用出现异常: {str(e)}，重试中，第{count}次重试")
+                        logger.error(
+                            f"API {urlparse(args[1]).path} 调用出现异常: {str(e)}，重试中，第{count}次重试"
+                        )
                         await asyncio.sleep(interval)
                     func.isRetrySuccess = True
                 else:
                     if func.isRetrySuccess:
                         pass
-                        # log.success(f"重试成功")
+                        logger.success(f"重试成功")
                     return result
 
         return wrapper
@@ -58,16 +61,13 @@ class BiliApiError(Exception):
 
 
 class BiliApi:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-    }
-    medals = []
-    csrf = ""
-
     def __init__(self, user_cfg: UserConfig, config: Config):
         self.user_cfg = user_cfg
         self.config = config
-        self.headers["Cookie"] = user_cfg.cookie
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+            "Cookie": user_cfg.cookie,
+        }
         # self.csrf是user_cfg.cookie中bili_jct开头的值
         match = re.search(r"bili_jct=([^;]+)", user_cfg.cookie)
         if not match:
@@ -76,6 +76,7 @@ class BiliApi:
         self.session = ClientSession(
             timeout=ClientTimeout(total=3), trust_env=True, headers=self.headers
         )
+        self.medals = []
 
     async def close(self):
         if self.session:

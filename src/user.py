@@ -24,9 +24,7 @@ class BiliUser:
         # 获取所有粉丝牌
         await self.api.get_fans_medals()
         logger.info(f"已获取粉丝牌{len(self.api.medals)}个")
-        msgs.append(
-            f"处理{self.api.user_info['uname']}({self.api.user_info['mid']})的{len(self.api.medals)}个粉丝牌"
-        )
+        first_msg = f"处理{self.api.user_info['uname']}({self.api.user_info['mid']})的{len(self.api.medals)}个粉丝牌"
         # 遍历粉丝牌
         for medal in self.api.medals:
             # 处理黑白名单
@@ -87,6 +85,6 @@ class BiliUser:
         # 关闭会话
         await self.api.close()
         # 构造结果消息
-        res = "\n".join(msgs)
+        res = first_msg + ("\n".join(msgs) if (msgs) else "没有需要点亮的粉丝牌")
         logger.debug(f"执行结果为\n\n{res}")
         return res
