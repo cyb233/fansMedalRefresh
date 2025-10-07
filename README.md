@@ -5,7 +5,8 @@
 - [x] 允许配置多个用户
 - [x] 仅未开播时弹幕点亮，开播后采用点赞点亮，避免影响主播
 - [x] 多平台推送支持，具体参考[onepush](https://github.com/y1ndan/onepush)
-- [x] 观看直播任务（测试性，未验证功能有效性，不过 30 亲密度太少了意义不大）
+- [x] 观看直播任务（测试性，未验证功能有效性，不过 30 亲密度太少了意义不大）.
+  - [ ] 关闭点赞和弹幕时是否转移为观看直播点亮粉丝牌
 
 # 使用说明
 
@@ -37,16 +38,21 @@
 
 # 配置说明
 
+- 除 users 和 push 外，各配置项均有默认值，无需改动时可以不进行配置
+- 配置时可参考`config.example.json`
+
 ## log — 日志配置
 
-| 字段      | 类型   | 默认值                                         | 说明                                                                                                                                                                                                                                                                                                           |
-| --------- | ------ | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `enabled` | `bool` | `true`                                         | 是否启用日志文件输出                                                                                                                                                                                                                                                                                           |
-| `level`   | `str`  | `"INFO"`                                       | 日志级别，可选：`TRACE` / `DEBUG` / `INFO` / `SUCCESS` / `WARNING` / `ERROR` / `CRITICAL`                                                                                                                                                                                                                      |
-| `file`    | `str`  | `"log/fansMedalRefresh_{time:YYYY-MM-DD}.log"` | 日志文件路径，可使用 `{time:YYYY-MM-DD}` 自动生成日期文件名，可用参数参考[`Loguru`文档](https://loguru.readthedocs.io/en/stable/api/logger.html#loguru._logger.Logger.add#:~:text=The%20record%20is%20just%20a%20Python%20dict,See%20datetime.datetime)，建议保留`{time:YYYY-MM-DD}`以便配合默认保留 30 天日志 |
+| 字段      | 类型   | 默认值                                         | 说明                                                                                                                                                                                                                                                                                                               |
+| --------- | ------ | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `enabled` | `bool` | `true`                                         | 是否启用日志文件输出                                                                                                                                                                                                                                                                                               |
+| `level`   | `str`  | `"INFO"`                                       | 日志级别，可选：`TRACE` / `DEBUG` / `INFO` / `SUCCESS` / `WARNING` / `ERROR` / `CRITICAL`                                                                                                                                                                                                                          |
+| `file`    | `str`  | `"log/fansMedalRefresh_{time:YYYY-MM-DD}.log"` | 日志文件路径，可使用 `{time:YYYY-MM-DD}` 自动生成日期文件名，更多可用参数参考[`Loguru`文档](https://loguru.readthedocs.io/en/stable/api/logger.html#loguru._logger.Logger.add#:~:text=The%20record%20is%20just%20a%20Python%20dict,See%20datetime.datetime)，建议保留`{time:YYYY-MM-DD}`以便配合默认保留 30 天日志 |
 
-**说明：**  
-启用后程序运行日志将写入文件，便于排查问题与记录任务执行情况
+**说明：**
+
+- 启用后程序运行日志将写入文件，便于排查问题与记录任务执行情况
+- 日志文件路径`file`建议保留`{time:YYYY-MM-DD}`模板，以确保仅保留最近 30 天日志的功能正常运行
 
 **_⚠️ 为了您的账号安全，如需提交日志，请注意自行对日志隐私内容打码（如`Cookie`等）！且通常建议提交`DEBUG`或`TRACE`级别日志_**
 
@@ -82,8 +88,9 @@
 | `enabled`    | `bool` | `true` | 是否启用自动点赞功能 |
 | `like_count` | `int`  | `30`   | 每次点赞数量         |
 
-**说明：**  
-若关闭 (`enabled=false`)，程序将跳过点赞任务
+**说明：**
+
+- 若关闭 (`enabled=false`)，程序将跳过点赞任务
 
 ---
 
@@ -117,13 +124,13 @@
 **说明：**
 
 - 若关闭 (`enabled=false`)，程序将跳过弹幕任务
-- `policy=1`：快速点亮粉丝牌，时间短
+- `policy=1`：仅点亮粉丝牌，时间短
 - `policy=2`：完整观看提升亲密度，时间更长
-- 注意：脚本默认单次运行最多 24 小时
+  > 注意：脚本默认单次运行最多 24 小时，当前默认配置理论至多执行 24\*60/25=57.6 即 57 个粉丝牌的完整亲密度，或理论点亮至多 24\*60/15=96 个粉丝牌
 
 ---
 
-## push — 推送配置
+## push — 推送配置列表
 
 支持多个推送通道（如 Telegram、Discord、WechatWork、Lark、DingTalk、PushPlus 等），具体请参考[onepush](https://github.com/y1ndan/onepush)。
 
@@ -137,16 +144,18 @@
 **示例：Telegram 推送**
 
 ```json
-{
-  "provider_name": "telegram",
-  "proxies": {
-    "http": "socks5h://127.0.0.1:1080",
-    "https": "socks5h://127.0.0.1:1080"
-  },
-  "use_markdown": true,
-  "token": "your_token",
-  "userid": "your_userid"
-}
+[
+  {
+    "provider_name": "telegram",
+    "proxies": {
+      "http": "socks5h://127.0.0.1:1080",
+      "https": "socks5h://127.0.0.1:1080"
+    },
+    "use_markdown": true,
+    "token": "your_token",
+    "userid": "your_userid"
+  }
+]
 ```
 
 # 参考项目
