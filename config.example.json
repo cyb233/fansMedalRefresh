@@ -19,7 +19,7 @@
     "enabled": true,
     "min_interval": 5,
     "max_interval": 10,
-    "danmaku_count": 1,
+    "danmaku_count": 10,
     "danmaku_list": [
       "(⌒▽⌒).",
       "（￣▽￣）.",
@@ -37,6 +37,12 @@
       "⁄(⁄ ⁄•⁄ω⁄•⁄ ⁄)⁄.",
       "←◡←."
     ]
+  },
+  "live": {
+    "enabled": true,
+    "policy": 1,
+    "light_time": 15,
+    "full_affinity_time": 25
   },
   "push": [
     {

@@ -59,14 +59,21 @@ async def main():
     messageList = []
     # 执行用户相关操作
     tasks = []
+    lives = []
+    msgs = []
     for user_cfg in config.users:
         user = BiliUser(user_cfg, config)
-        tasks.append(user.start())
+        tasks.append(user.like_and_danmaku())
+        lives.append(user.watch_live())
+        msgs.append(user.collect_msgs())
     try:
-        messageList.extend(await asyncio.gather(*tasks))
+        await asyncio.gather(*tasks)
+        await asyncio.gather(*lives)
     except Exception as e:
         log.exception(e)
-        messageList.append(f"用户执行失败: {e}")
+        messageList.append([f"用户执行失败: {e}"])
+    finally:
+        messageList.extend(await asyncio.gather(*msgs))
     title_raw = "B站粉丝牌点亮助手-执行结果推送"
     content_raw = "\n\n".join("\n".join(row) for row in messageList)
     # 推送
@@ -108,6 +115,10 @@ if __name__ == "__main__":
     log.info("任务开始")
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.run_until_complete(main())
-    loop.close()
-    log.info("任务结束")
+    try:
+        loop.run_until_complete(asyncio.wait_for(main(), timeout=24 * 60 * 60))
+    except asyncio.TimeoutError:
+        log.warning("任务超时：已运行 24 小时，自动终止。")
+    finally:
+        loop.close()
+        log.info("任务结束")

@@ -13,20 +13,25 @@ class BiliUser:
         self.user_cfg = user_cfg
         self.config = config
         self.api = BiliApi(user_cfg, config)
+        self.live_only_medals = []
+        self.title_msg = ""
+        self.msgs = []
+        self.live_msgs = []
+        self.end_msg = ""
 
-    async def start(self) -> list[str]:
-        msgs = []
+    async def like_and_danmaku(self):
         # 获取个人信息
         await self.api.get_user_info()
         logger.info(
-            f"开始执行用户{self.api.user_info['uname']}（{self.api.user_info['mid']}）"
+            f"开始执行用户{self.api.user_info['uname']}({self.api.user_info['mid']})"
         )
         # 获取所有粉丝牌
         await self.api.get_fans_medals()
         logger.info(f"已获取粉丝牌{len(self.api.medals)}个")
-        first_msg = f"处理{self.api.user_info['uname']}（{self.api.user_info['mid']}）的{len(self.api.medals)}个粉丝牌"
+        self.title_msg = f"处理{self.api.user_info['uname']}({self.api.user_info['mid']})的{len(self.api.medals)}个粉丝牌"
         # 遍历粉丝牌
-        for medal in self.api.medals:
+        for index in range(len(self.api.medals)):
+            medal = self.api.medals[index]
             # 处理黑白名单
             ruid = medal["uinfo_medal"]["ruid"]
             if self.user_cfg.white_uids:
@@ -44,14 +49,28 @@ class BiliUser:
             logger.trace(f"检查粉丝牌 {medal['uinfo_medal']['name']}")
             # 检查粉丝牌点亮状态
             if not medal["medal"]["is_lighted"]:
-                logger.info(f"粉丝牌 {medal['uinfo_medal']['name']} 需要点亮")
-                # 检查是否开播
-                is_live = await self.api.is_up_live(medal["room_info"]["room_id"])
                 logger.info(
-                    f"{medal['uinfo_medal']['name']}"
-                    + ("正在直播" if is_live else "未在直播")
+                    f"粉丝牌 {medal['uinfo_medal']['name']} 需要点亮({index + 1}/{len(self.api.medals)})"
                 )
-                if is_live:
+                # 检查是否开播
+                live_status = await self.api.live_status(medal["room_info"]["room_id"])
+                logger.info(
+                    f"{medal['anchor_info']['nick_name']}"
+                    + (
+                        "正在直播"
+                        if live_status["room_info"]["live_status"] == 1
+                        else "未在直播"
+                    )
+                )
+                # 判断能否点赞或弹幕点亮
+                new_switch_info = live_status["new_switch_info"]
+                if not new_switch_info["room-danmaku-editor"]:
+                    logger.info(
+                        f"{medal['uinfo_medal']['name']} 无法点赞或发送弹幕，尝试切换至观看点亮"
+                    )
+                    self.live_only_medals.append(medal)
+                    continue
+                if live_status["room_info"]["live_status"] == 1:
                     if self.config.like.enabled:
                         logger.info(f"{medal['uinfo_medal']['name']} 开始点赞")
                         # 开播中，使用点赞点亮，点赞次数按配置，时间间隔按配置随机秒
@@ -60,8 +79,8 @@ class BiliUser:
                             ruid,
                             self.config.like.like_count,
                         )
-                        msgs.append(
-                            f"通过点赞{self.config.like.like_count}次点亮up {medal['anchor_info']['nick_name']} 的粉丝牌 {medal['uinfo_medal']['name']}"
+                        self.msgs.append(
+                            f"点赞{self.config.like.like_count}次点亮up {medal['anchor_info']['nick_name']} 的粉丝牌 {medal['uinfo_medal']['name']}"
                         )
                 else:
                     if self.config.danmaku.enabled:
@@ -73,22 +92,76 @@ class BiliUser:
                                 medal["room_info"]["room_id"],
                                 random.choice(self.config.danmaku.danmaku_list),
                             )
+                            logger.info(
+                                f"{medal['uinfo_medal']['name']} 发送 {i + 1}/{self.config.danmaku.danmaku_count} 条"
+                            )
                             await asyncio.sleep(
                                 random.randint(
                                     self.config.danmaku.min_interval,
                                     self.config.danmaku.max_interval,
                                 )
                             )
-                        msgs.append(
-                            f"通过发送{self.config.danmaku.danmaku_count}条弹幕点亮up {medal['anchor_info']['nick_name']} 的粉丝牌 {medal['uinfo_medal']['name']}"
+                        self.msgs.append(
+                            f"发送{self.config.danmaku.danmaku_count}条弹幕点亮up {medal['anchor_info']['nick_name']} 的粉丝牌 {medal['uinfo_medal']['name']}"
                         )
+
+    async def watch_live(self):
+        if not self.config.live.enabled:
+            return
+        if self.config.live.policy == 1:
+            watch_time = self.config.live.light_time
+            live_medals = self.live_only_medals
+        elif self.config.live.policy == 2:
+            watch_time = self.config.live.full_affinity_time
+            live_medals = [
+                *[
+                    m for m in self.api.medals if m in self.live_only_medals
+                ],  # 先 live_only_medals
+                *[
+                    m for m in self.api.medals if m not in self.live_only_medals
+                ],  # 再其他的
+            ]
+        else:
+            return
+        for index in range(len(live_medals)):
+            medal = live_medals[index]
+            logger.info(
+                f"开始观看 {medal['anchor_info']['nick_name']} 的直播({index + 1}/{len(live_medals)})"
+            )
+            # 发送心跳
+            for i in range(watch_time):
+                await self.api.live_heartbeat(medal["room_info"]["room_id"], i)
+                logger.debug(
+                    f"{medal['anchor_info']['nick_name']} 的粉丝牌 {medal['uinfo_medal']['name']} 发送心跳包 {i + 1}/{watch_time}"
+                )
+                if i > 0 and (i + 1) % 5 == 0:
+                    logger.info(
+                        f"{medal['anchor_info']['nick_name']} 的粉丝牌 {medal['uinfo_medal']['name']} 发送心跳包 {i + 1}/{watch_time}"
+                    )
+                await asyncio.sleep(60)
+            logger.info(
+                f"{medal['anchor_info']['nick_name']} 的粉丝牌 {medal['uinfo_medal']['name']} 已观看{watch_time}分钟直播"
+            )
+            if medal in self.live_only_medals:
+                self.msgs.append(
+                    f"观看{self.config.danmaku.danmaku_count}分钟直播点亮up {medal['anchor_info']['nick_name']} 的粉丝牌 {medal['uinfo_medal']['name']}"
+                )
+            else:
+                self.live_msgs.append(
+                    f"{medal['anchor_info']['nick_name']} 的粉丝牌 {medal['uinfo_medal']['name']} 已观看{watch_time}分钟直播"
+                )
+
+    async def collect_msgs(self) -> list[str]:
         # 关闭会话
         await self.api.close()
-        # 构造结果消息
-        if msgs:
-            msgs.append(f"共点亮{len(msgs)}个粉丝牌")
+        total = len(self.msgs)
+        if total:
+            self.end_msg = f"共点亮{total}个粉丝牌"
         else:
-            msgs.append("没有需要点亮的粉丝牌")
-        msgs.insert(0, first_msg)
-        logger.debug("执行结果为\n\n{}", "\n".join(msgs))
-        return msgs
+            self.end_msg = "没有需要点亮的粉丝牌"
+
+        return [
+            self.title_msg,
+            *self.msgs,
+            self.end_msg,
+        ]

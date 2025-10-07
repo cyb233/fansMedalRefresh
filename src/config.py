@@ -53,7 +53,7 @@ class DanmakuConfig:
     enabled: bool = field(default=True)  # 是否启用弹幕功能
     min_interval: int = field(default=5)  # 最小弹幕间隔，单位秒
     max_interval: int = field(default=10)  # 最大弹幕间隔，单位秒
-    danmaku_count: int = field(default=1)  # 发送弹幕数量
+    danmaku_count: int = field(default=10)  # 发送弹幕数量
     danmaku_list: List[str] = field(
         default_factory=lambda: [
             "(⌒▽⌒).",
@@ -73,6 +73,16 @@ class DanmakuConfig:
             "←◡←.",
         ]
     )  # 默认弹幕列表
+
+
+@dataclass
+class LiveConfig:
+    """观看配置"""
+
+    enabled: bool = field(default=True)  # 是否启用观看功能
+    policy: int = field(default=1)  # 观看策略，1 仅点亮牌子，2 完整观看亲密度
+    light_time: int = field(default=15)  # 点亮所需时长
+    full_affinity_time: int = field(default=25)  # 完整观看亲密度所需时长
 
 
 @dataclass
@@ -159,6 +169,7 @@ class Config:
     log: LogConfig = field(default_factory=LogConfig)  # 日志配置
     like: LikeConfig = field(default_factory=LikeConfig)  # 点赞配置
     danmaku: DanmakuConfig = field(default_factory=DanmakuConfig)  # 弹幕配置
+    live: LiveConfig = field(default_factory=LiveConfig)  # 观看配置
     push: List[PushConfig] = field(default_factory=list)  # 推送配置列表
 
     @classmethod
@@ -234,6 +245,16 @@ class Config:
                     ),
                     danmaku_list=danmaku_data.get(
                         "danmaku_list", config.danmaku.danmaku_list
+                    ),
+                )
+            if "live" in file_config:
+                live_data = file_config["live"]
+                config.live = LiveConfig(
+                    enabled=live_data.get("enabled", config.live.enabled),
+                    policy=live_data.get("policy", config.live.policy),
+                    light_time=live_data.get("light_time", config.live.light_time),
+                    full_affinity_time=live_data.get(
+                        "full_affinity_time", config.live.full_affinity_time
                     ),
                 )
 

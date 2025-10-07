@@ -3,7 +3,8 @@
 
 import asyncio
 import re
-from aiohttp import ClientSession, ClientTimeout, ClientError
+import time
+from aiohttp import ClientSession, ClientTimeout, ClientError, ClientResponse
 from loguru import logger
 from urllib.parse import urlencode, urlparse
 from src.config import Config, UserConfig
@@ -69,31 +70,40 @@ class BiliApi:
             "Cookie": user_cfg.cookie,
         }
         # self.csrf是user_cfg.cookie中bili_jct开头的值
-        match = re.search(r"bili_jct=([^;]+)", user_cfg.cookie)
-        if not match:
+        self.csrf = self.get_cookie_value("bili_jct")
+        if not self.csrf:
             raise ValueError("未在 cookie 中找到 bili_jct（csrf token）")
-        self.csrf = match.group(1)
+        #
+        self.buvid = self.get_cookie_value("LIVE_BUVID")
+        if not self.buvid:
+            raise ValueError("未在 cookie 中找到 LIVE_BUVID")
         self.session = ClientSession(
             timeout=ClientTimeout(total=3), trust_env=True, headers=self.headers
         )
         self.medals = []
 
+    def get_cookie_value(self, key: str) -> str | None:
+        pattern = rf"{re.escape(key)}=([^;]+)"
+        match = re.search(pattern, self.user_cfg.cookie)
+        return match.group(1) if match else None
+
     async def close(self):
         if self.session:
             await self.session.close()
 
-    def __check_response(self, resp: dict) -> dict:
+    async def __check_response(self, resp: ClientResponse) -> dict:
         logger.trace(resp)
-        if resp["code"] != 0 or ("mode_info" in resp["data"] and resp["message"] != ""):
-            raise BiliApiError(resp["code"], resp["message"])
-        return resp["data"]
+        data = await resp.json()
+        logger.trace(data)
+        if data["code"] != 0 or ("mode_info" in data["data"] and data["message"] != ""):
+            raise BiliApiError(data["code"], data["message"])
+        return data["data"]
 
     @retry()
     async def __get(self, *args, **kwargs):
         try:
             response = await self.session.get(*args, **kwargs)
-            data = await response.json()
-            return self.__check_response(data)
+            return await self.__check_response(response)
         except ClientError as e:
             raise BiliApiError(-1, str(e), e)
 
@@ -101,8 +111,7 @@ class BiliApi:
     async def __post(self, *args, **kwargs):
         try:
             async with self.session.post(*args, **kwargs) as response:
-                data = await response.json(content_type=None)
-                return self.__check_response(data)
+                return await self.__check_response(response)
         except ClientError as e:
             raise BiliApiError(-1, str(e), e)
 
@@ -129,13 +138,13 @@ class BiliApi:
             await asyncio.sleep(1)
             params["page"] += 1
 
-    async def is_up_live(self, room_id: str) -> bool:
-        url = "https://api.live.bilibili.com/room/v1/Room/get_info"
+    async def live_status(self, room_id: str):
+        url = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom"
         params = {
             "room_id": room_id,
         }
         data = await self.__get(url, params=params)
-        return data["live_status"] == 1
+        return data
 
     async def like_medal(self, room_id: str, anchor_id: str, click_time: int = 30):
         url = "https://api.live.bilibili.com/xlive/app-ucenter/v1/like_info_v3/like/likeReportV3"
@@ -157,7 +166,7 @@ class BiliApi:
         data = {
             "msg": msg,
             "roomid": room_id,
-            "rnd": int(asyncio.get_event_loop().time()),
+            "rnd": int(time.time() * 1000),
             "color": "16772431",
             "fontsize": "25",
             "csrf": self.csrf,
@@ -167,3 +176,12 @@ class BiliApi:
             data=urlencode(data),
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
+
+    async def live_heartbeat(self, room_id: str, minutes: int):
+        url = "https://live-trace.bilibili.com/xlive/data-interface/v1/x25Kn/E"
+        params = {
+            "id": f"[0,0,{minutes},{room_id}]",
+            "device": f'["{self.buvid}",""]',
+            "ts": int(time.time() * 1000),
+        }
+        await self.__post(url, params=params)
