@@ -138,6 +138,6 @@
 }
 ```
 
-## 参考项目
+# 参考项目
 
 [fansMedalHelper](https://github.com/XiaoMiku01/fansMedalHelper) — 本项目的灵感来源与参考实现
