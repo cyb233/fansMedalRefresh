@@ -11,24 +11,24 @@
 
 1. 使用[Git](https://git-scm.com/downloads)克隆或直接[下载](https://github.com/cyb233/fansMedalRefresh/archive/refs/heads/main.zip)本项目
 
-```bash
-git clone https://github.com/cyb233/fansMedalRefresh.git
-```
+   ```bash
+   git clone https://github.com/cyb233/fansMedalRefresh.git
+   ```
 
 2. 安装[Python](https://www.python.org/downloads/)（建议 3.x，未在 2.x 中进行过测试）
 3. 复制配置文件示例`config.example.json`并重命名为`config.json`
 4. 根据[配置说明](#配置说明)正确修改`config.json`
 5. 安装依赖
 
-```bash
-pip install -r requirements.txt
-```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 6. 运行项目
 
-```bash
-python main.py
-```
+   ```bash
+   python main.py
+   ```
 
 7. 如需定时运行，请选择：
    > 通常建议运行间隔为 24 小时，因为脚本设计至多运行 24 小时
