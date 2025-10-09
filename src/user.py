@@ -12,12 +12,12 @@ class BiliUser:
     def __init__(self, user_cfg: UserConfig, config: Config):
         self.user_cfg = user_cfg
         self.config = config
-        self.api = BiliApiFactory.create(user_cfg, config)
         self.live_only_medals = []
         self.title_msg = ""
         self.msgs = []
         self.live_msgs = []
         self.end_msg = ""
+        self.api = BiliApiFactory.create(user_cfg, config)
 
     async def like_and_danmaku(self):
         # 获取个人信息

@@ -73,10 +73,10 @@ class BiliApiBase:
             headers=self.headers,
         )
 
-    def get_cookie_value(self, key: str) -> str | None:
+    def get_cookie_value(self, key: str, default: str = '') -> str:
         pattern = rf"{re.escape(key)}=([^;]+)"
         match = re.search(pattern, self.user_cfg.cookie)
-        return match.group(1) if match else None
+        return match.group(1) if match else default
 
     async def close(self):
         if self.session:

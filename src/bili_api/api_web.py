@@ -1,6 +1,8 @@
 import asyncio
 import time
 from urllib.parse import urlencode
+
+from .errors import BiliApiError
 from .common import BiliApiCommon
 from loguru import logger
 
@@ -18,6 +20,21 @@ class BiliApiWeb(BiliApiCommon):
             raise ValueError("Cookie中缺少必要字段 bili_jct 或 LIVE_BUVID")
 
         self.session.headers.update({"Cookie": user_cfg.cookie})
+
+        expires = self.get_cookie_value("bili_ticket_expires", "0")
+        # 10位时间戳转时间
+        cookie_expire_time = time.strftime(
+            "%Y-%m-%d %H:%M:%S", time.localtime(int(expires))
+        )
+        logger.info(f"Cookie 预计过期时间：{cookie_expire_time}")
+        # 判断是否已经过期
+        if time.time() > int(expires):
+            logger.error("Cookie已过期，请重新登录")
+            raise BiliApiError(-1, "Cookie已过期，请重新登录")
+
+    async def refresh_cookie(self):
+        """刷新Cookie"""
+        pass  # todo
 
     async def get_user_info(self):
         url = "https://api.bilibili.com/x/web-interface/nav"

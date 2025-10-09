@@ -70,8 +70,12 @@ async def push_results(messageList: list[list[str]]):
         )
         content = (
             "\n\n".join(
-                "_{}_".format(escape_markdown(row[0])) if row[0] else row[0]
-                + "".join(f"\n> {escape_markdown(line)}" for line in row[1:])
+                (
+                    "_{}_".format(escape_markdown(row[0]))
+                    if row[0]
+                    else row[0]
+                    + "".join(f"\n> {escape_markdown(line)}" for line in row[1:])
+                )
                 for row in messageList
                 if row
             )
@@ -107,14 +111,14 @@ async def main():
     tasks = []
     lives = []
     msgs = []
-    for user_cfg in config.users:
-        user = BiliUser(user_cfg, config)
-        tasks.append(user.like_and_danmaku())
-        lives.append(user.watch_live())
-        msgs.append(user.collect_msgs())
     try:
-        await asyncio.gather(*tasks)
-        await asyncio.gather(*lives)
+        for user_cfg in config.users:
+            user = BiliUser(user_cfg, config)
+            tasks.append(user.like_and_danmaku())
+            lives.append(user.watch_live())
+            msgs.append(user.collect_msgs())
+        await asyncio.gather(*tasks, return_exceptions=True)
+        await asyncio.gather(*lives, return_exceptions=True)
     except Exception as e:
         log.exception(e)
         messageList.append([f"用户执行失败: {e}"])
