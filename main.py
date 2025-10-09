@@ -3,6 +3,7 @@
 
 __VERSION__ = "0.0.1"
 import re
+from typing import Iterable
 from loguru import logger
 
 import asyncio
@@ -51,10 +52,54 @@ def escape_markdown(text: str) -> str:
     return re.sub(f"([{re.escape(special_chars)}])", r"\\\1", text)
 
 
+async def push_results(messageList: list[list[str]]):
+    """
+    推送执行结果
+    """
+    title_raw = "B站粉丝牌点亮助手 - 执行结果推送"
+    content_raw = "\n\n".join("\n".join(row) for row in messageList)
+
+    log.info(f"推送内容：\n{title_raw}\n\n{content_raw}")
+    for push_cfg in config.push:
+        notifier = get_notifier(push_cfg.provider_name)
+        if not notifier:
+            log.warning(f"未知的推送提供商: {push_cfg.provider_name}")
+            continue
+
+        title = (
+            f"*{escape_markdown(title_raw)}*" if push_cfg.use_markdown else title_raw
+        )
+        content = (
+            "\n\n".join(
+                "_{}_".format(escape_markdown(row[0]))
+                + "".join(f"\n> {escape_markdown(line)}" for line in row[1:])
+                for row in messageList
+                if row
+            )
+            if push_cfg.use_markdown
+            else content_raw
+        )
+
+        try:
+            res: Response = notifier.notify(
+                proxies=push_cfg.proxies,
+                **push_cfg._config,
+                title=title,
+                content=content,
+            )
+            log.info(f"使用 {push_cfg.provider_name} 推送结果: {res}")
+            if not res.ok:
+                log.warning(
+                    f"推送失败：{res.status_code} {res.reason}\nurl: {res.request.url}\nbody: {res.request.body}\nresp: {res.text}"
+                )
+        except Exception as e:
+            log.exception(f"推送 {push_cfg.provider_name} 时发生异常：{e}")
+
+
 @log.catch
 async def main():
     log.info("程序版本: {}".format(__VERSION__))
-    log.debug("执行配置", config)
+    log.debug("执行配置：{}", config)
     # 收集用户消息
     messageList = []
     # 执行用户相关操作
@@ -73,52 +118,34 @@ async def main():
         log.exception(e)
         messageList.append([f"用户执行失败: {e}"])
     finally:
-        messageList.extend(await asyncio.gather(*msgs))
-    title_raw = "B站粉丝牌点亮助手-执行结果推送"
-    content_raw = "\n\n".join("\n".join(row) for row in messageList)
-    # 推送
-    log.info(f"推送内容：\n{title_raw}\n\n{content_raw}")
-    for push_cfg in config.push:
-        notifier = get_notifier(push_cfg.provider_name)
-        if notifier:
-            title = (
-                f"*{escape_markdown(title_raw)}*"
-                if push_cfg.use_markdown
-                else title_raw
-            )
-            content = (
-                "\n\n".join(
-                    "_{}_".format(escape_markdown(row[0]))
-                    + "".join(f"\n> {escape_markdown(line)}" for line in row[1:])
-                    for row in messageList
-                    if row
-                )
-                if push_cfg.use_markdown
-                else content_raw
-            )
-            res: Response = notifier.notify(
-                proxies=push_cfg.proxies,
-                **push_cfg._config,
-                title=title,
-                content=content,
-            )
-            log.info(f"使用 {push_cfg.provider_name} 推送结果: {res}")
-            if not res.ok:
-                log.warning(
-                    f"推送失败：{res.status_code} {res.reason}\nurl: {res.request.url}\nbody: {res.request.body}\nresp: {res.text}"
-                )
-        else:
-            log.warning(f"未知的推送提供商: {push_cfg.provider_name}")
+        results = await asyncio.gather(*msgs, return_exceptions=True)
+        for r in results:
+            if isinstance(r, Exception):
+                messageList.append([f"消息收集异常: {r}"])
+            elif isinstance(r, Iterable) and not isinstance(r, (str, bytes)):
+                messageList.extend(r)
+            else:
+                messageList.append([str(r)])
+    return messageList
 
 
 if __name__ == "__main__":
     log.info("任务开始")
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
+    messageList = []
     try:
-        loop.run_until_complete(asyncio.wait_for(main(), timeout=24 * 60 * 60))
+        messageList = loop.run_until_complete(
+            asyncio.wait_for(main(), timeout=24 * 60 * 60)
+        )
     except asyncio.TimeoutError:
         log.warning("任务超时：已运行 24 小时，自动终止。")
+        messageList.append(["任务超时：运行超过 24 小时"])
     finally:
-        loop.close()
-        log.info("任务结束")
+        try:
+            loop.run_until_complete(push_results(messageList))
+        except Exception as e:
+            log.exception("推送阶段出现异常：{}", e)
+        finally:
+            loop.close()
+            log.info("任务结束")

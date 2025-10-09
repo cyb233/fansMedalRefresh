@@ -11,44 +11,49 @@ from src.config import Config, UserConfig
 
 
 def retry(tries=3, interval=1):
-    def decorate(func):
+    """
+    异常自动重试装饰器
+    """
+
+    def decorator(func):
         async def wrapper(*args, **kwargs):
-            count = 0
-            func.isRetrySuccess = False
-            while True:
+            for attempt in range(1, tries + 1):
                 try:
                     result = await func(*args, **kwargs)
-                except Exception as e:
-                    count += 1
-                    if type(e) == BiliApiError:
-                        if e.code == 1011040:
-                            raise e
-                        elif e.code == 10030:
-                            await asyncio.sleep(10)
-                        elif e.code == -504:
-                            pass
-                        else:
-                            raise e
-                    if count > tries:
-                        logger.error(
-                            f"API {urlparse(args[1]).path} 调用出现异常: {str(e)}"
-                        )
+                    if attempt > 1:
+                        logger.success(f"{func.__name__} 第 {attempt} 次重试成功")
+                    return result
+                except BiliApiError as e:
+                    # 针对特定错误处理
+                    if e.code == 1011040:
                         raise e
+                    elif e.code == 10030:
+                        await asyncio.sleep(10)
+                    elif e.code == -504:
+                        pass  # 超时可重试
                     else:
-                        logger.error(
-                            f"API {urlparse(args[1]).path} 调用出现异常: {str(e)}，重试中，第{count}次重试"
+                        raise e
+                    if attempt < tries:
+                        logger.warning(
+                            f"{func.__name__} 调用异常 {e}，第 {attempt} 次重试"
                         )
                         await asyncio.sleep(interval)
-                    func.isRetrySuccess = True
-                else:
-                    if func.isRetrySuccess:
-                        pass
-                        logger.success(f"重试成功")
-                    return result
+                    else:
+                        logger.error(f"{func.__name__} 调用失败，已重试 {tries} 次")
+                        raise
+                except Exception as e:
+                    if attempt < tries:
+                        logger.warning(
+                            f"{func.__name__} 未知异常 {e}，第 {attempt} 次重试"
+                        )
+                        await asyncio.sleep(interval)
+                    else:
+                        logger.error(f"{func.__name__} 未知异常，已重试 {tries} 次")
+                        raise
 
         return wrapper
 
-    return decorate
+    return decorator
 
 
 class BiliApiError(Exception):
@@ -62,25 +67,28 @@ class BiliApiError(Exception):
 
 
 class BiliApi:
-    def __init__(self, user_cfg: UserConfig, config: Config):
+
+    def __init__(self, user_cfg: UserConfig, config: Config, timeout: int = 10):
         self.user_cfg = user_cfg
         self.config = config
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
             "Cookie": user_cfg.cookie,
         }
-        # self.csrf是user_cfg.cookie中bili_jct开头的值
+        # csrf token
         self.csrf = self.get_cookie_value("bili_jct")
         if not self.csrf:
             raise ValueError("未在 cookie 中找到 bili_jct（csrf token）")
-        #
+        # buvid
         self.buvid = self.get_cookie_value("LIVE_BUVID")
         if not self.buvid:
             raise ValueError("未在 cookie 中找到 LIVE_BUVID")
+
         self.session = ClientSession(
-            timeout=ClientTimeout(total=3), trust_env=True, headers=self.headers
+            timeout=ClientTimeout(total=timeout), trust_env=True, headers=self.headers
         )
         self.medals = []
+        self.user_info = {}
 
     def get_cookie_value(self, key: str) -> str | None:
         pattern = rf"{re.escape(key)}=([^;]+)"
@@ -92,18 +100,22 @@ class BiliApi:
             await self.session.close()
 
     async def __check_response(self, resp: ClientResponse) -> dict:
-        logger.trace(resp)
-        data = await resp.json()
+        try:
+            data = await resp.json()
+        except Exception as e:
+            text = await resp.text()
+            raise BiliApiError(-1, f"响应解析失败: {text}", e)
+
         logger.trace(data)
-        if data["code"] != 0 or ("mode_info" in data["data"] and data["message"] != ""):
-            raise BiliApiError(data["code"], data["message"])
-        return data["data"]
+        if data.get("code", 0) != 0:
+            raise BiliApiError(data.get("code", -1), data.get("message", "未知错误"))
+        return data.get("data", {})
 
     @retry()
     async def __get(self, *args, **kwargs):
         try:
-            response = await self.session.get(*args, **kwargs)
-            return await self.__check_response(response)
+            async with self.session.get(*args, **kwargs) as response:
+                return await self.__check_response(response)
         except ClientError as e:
             raise BiliApiError(-1, str(e), e)
 
@@ -121,22 +133,19 @@ class BiliApi:
 
     async def get_fans_medals(self):
         url = "https://api.live.bilibili.com/xlive/app-ucenter/v1/fansMedal/panel"
-        params = {
-            "page": 1,
-            "page_size": 50,
-        }
+        params = {"page": 1, "page_size": 50}
         self.medals = []
+
         while True:
             data = await self.__get(url, params=params)
             # 佩戴的
-            if data["special_list"]:
+            if data.get("special_list"):
                 self.medals.extend(data["special_list"])
-            # 其他的
-            if not data["list"]:
+            if not data.get("list"):
                 break
             self.medals.extend(data["list"])
-            await asyncio.sleep(1)
             params["page"] += 1
+            await asyncio.sleep(1)
 
     async def live_status(self, room_id: str):
         url = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom"
