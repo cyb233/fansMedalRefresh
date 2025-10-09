@@ -186,6 +186,8 @@ class Config:
     live: LiveConfig = field(default_factory=LiveConfig)  # 观看配置
     push: List[PushConfig] = field(default_factory=list)  # 推送配置列表
 
+    api_type: str = field(default="app")
+
     @classmethod
     def load_config(cls, config_path: str) -> "Config":
         """
@@ -235,6 +237,8 @@ class Config:
                     file=log_data.get("file", config.log.file),
                 )
 
+            config.api_type = file_config.get("api_type", "app")
+
             # 更新点赞配置
             if "like" in file_config:
                 like_data = file_config["like"]
@@ -264,7 +268,7 @@ class Config:
                         "emoji_list", config.danmaku.emoji_list
                     ),
                 )
-            
+
             # 更新观看配置
             if "live" in file_config:
                 live_data = file_config["live"]

@@ -11,6 +11,7 @@
       "black_uids": [222103174]
     }
   ],
+  "api_type": "app",
   "like": {
     "enabled": true,
     "like_count": 30

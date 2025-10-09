@@ -70,7 +70,7 @@ async def push_results(messageList: list[list[str]]):
         )
         content = (
             "\n\n".join(
-                "_{}_".format(escape_markdown(row[0]))
+                "_{}_".format(escape_markdown(row[0])) if row[0] else row[0]
                 + "".join(f"\n> {escape_markdown(line)}" for line in row[1:])
                 for row in messageList
                 if row
@@ -78,6 +78,8 @@ async def push_results(messageList: list[list[str]]):
             if push_cfg.use_markdown
             else content_raw
         )
+
+        log.debug(f"使用 {push_cfg.provider_name} 推送：{title}\n\n{content}")
 
         try:
             res: Response = notifier.notify(

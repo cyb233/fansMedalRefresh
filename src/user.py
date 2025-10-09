@@ -5,14 +5,14 @@ import asyncio
 import random
 from loguru import logger
 from src.config import Config, UserConfig
-from .api import BiliApi
+from src.bili_api.factory import BiliApiFactory
 
 
 class BiliUser:
     def __init__(self, user_cfg: UserConfig, config: Config):
         self.user_cfg = user_cfg
         self.config = config
-        self.api = BiliApi(user_cfg, config)
+        self.api = BiliApiFactory.create(user_cfg, config)
         self.live_only_medals = []
         self.title_msg = ""
         self.msgs = []
@@ -23,7 +23,7 @@ class BiliUser:
         # 获取个人信息
         await self.api.get_user_info()
         logger.info(
-            f"开始执行用户{self.api.user_info['uname']}({self.api.user_info['mid']})"
+            f"点赞和弹幕 开始执行用户{self.api.user_info['uname']}({self.api.user_info['mid']})"
         )
         # 获取所有粉丝牌
         await self.api.get_fans_medals()
@@ -113,6 +113,9 @@ class BiliUser:
                         )
 
     async def watch_live(self):
+        logger.info(
+            f"观看直播 开始执行用户{self.api.user_info['uname']}({self.api.user_info['mid']})"
+        )
         if not self.config.live.enabled:
             return
         if self.config.live.policy == 1:
