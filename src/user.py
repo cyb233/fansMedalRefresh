@@ -53,7 +53,9 @@ class BiliUser:
                     f"粉丝牌 {medal['uinfo_medal']['name']} 需要点亮({index + 1}/{len(self.api.medals)})"
                 )
                 # 检查是否开播
-                live_status = await self.api.live_status(medal["room_info"]["room_id"])
+                live_status = (
+                    await self.api.live_status(medal["room_info"]["room_id"])
+                )["data"]
                 logger.info(
                     f"{medal['anchor_info']['nick_name']}"
                     + (
