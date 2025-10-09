@@ -4,7 +4,13 @@
 import asyncio
 import re
 import time
-from aiohttp import ClientSession, ClientTimeout, ClientError, ClientResponse
+from aiohttp import (
+    ClientSession,
+    ClientTimeout,
+    ClientError,
+    ClientResponse,
+    TCPConnector,
+)
 from loguru import logger
 from urllib.parse import urlencode, urlparse
 from src.config import Config, UserConfig
@@ -84,8 +90,12 @@ class BiliApi:
         if not self.buvid:
             raise ValueError("未在 cookie 中找到 LIVE_BUVID")
 
+        connector = TCPConnector(force_close=True)
         self.session = ClientSession(
-            timeout=ClientTimeout(total=timeout), trust_env=True, headers=self.headers
+            connector=connector,
+            timeout=ClientTimeout(total=timeout),
+            trust_env=True,
+            headers=self.headers,
         )
         self.medals = []
         self.user_info = {}
