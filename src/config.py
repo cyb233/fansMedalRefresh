@@ -73,6 +73,20 @@ class DanmakuConfig:
             "←◡←.",
         ]
     )  # 默认弹幕列表
+    emoji_list: List[str] = field(
+        default_factory=lambda: [
+            "[花]",
+            "[妙]",
+            "[dog]",
+            "[大笑]",
+            "[比心]",
+            "[吃瓜]",
+            "[笑哭]",
+            "[哇]",
+            "[爱]",
+            "[惊喜]",
+        ]
+    )
 
 
 @dataclass
@@ -246,7 +260,12 @@ class Config:
                     danmaku_list=danmaku_data.get(
                         "danmaku_list", config.danmaku.danmaku_list
                     ),
+                    emoji_list=danmaku_data.get(
+                        "emoji_list", config.danmaku.emoji_list
+                    ),
                 )
+            
+            # 更新观看配置
             if "live" in file_config:
                 live_data = file_config["live"]
                 config.live = LiveConfig(

@@ -87,13 +87,20 @@ class BiliUser:
                         logger.info(f"{medal['uinfo_medal']['name']} 开始发送弹幕")
                         # 未开播，使用弹幕点亮，弹幕数量按配置，内容从配置列表随机
                         for i in range(self.config.danmaku.danmaku_count):
-                            logger.debug(f"第{i}次...")
+                            logger.debug(f"第{i + 1}次...")
+                            # 随机顺序，默认 15条弹幕+10个表情+正反顺序 可以有300个不重样的
+                            danmaku = random.choice(self.config.danmaku.danmaku_list)
+                            emoji = random.choice(self.config.danmaku.emoji_list)
+                            order = random.randint(1, 2)
+                            send_danmaku = (
+                                danmaku + emoji if order == 1 else emoji + danmaku
+                            )
                             await self.api.send_danmaku(
                                 medal["room_info"]["room_id"],
-                                random.choice(self.config.danmaku.danmaku_list),
+                                send_danmaku,
                             )
                             logger.info(
-                                f"{medal['uinfo_medal']['name']} 发送 {i + 1}/{self.config.danmaku.danmaku_count} 条"
+                                f"{medal['uinfo_medal']['name']} 发送 {i + 1}/{self.config.danmaku.danmaku_count} 条 {send_danmaku}"
                             )
                             await asyncio.sleep(
                                 random.randint(

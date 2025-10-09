@@ -119,6 +119,11 @@ class BiliApi:
         logger.trace(data)
         if data.get("code", 0) != 0:
             raise BiliApiError(data.get("code", -1), data.get("message", "未知错误"))
+        elif "mode_info" in data["data"] and data["message"] != "":  # 发送弹幕时
+            raise BiliApiError(
+                data.get("code", -1),
+                data.get("message", "未知错误") + "，是不是风控了？",
+            )
         return data.get("data", {})
 
     @retry()
@@ -140,6 +145,7 @@ class BiliApi:
     async def get_user_info(self):
         url = "https://api.bilibili.com/x/web-interface/nav"
         self.user_info = await self.__get(url)
+        return self.user_info
 
     async def get_fans_medals(self):
         url = "https://api.live.bilibili.com/xlive/app-ucenter/v1/fansMedal/panel"
@@ -156,14 +162,14 @@ class BiliApi:
             self.medals.extend(data["list"])
             params["page"] += 1
             await asyncio.sleep(1)
+        return self.medals
 
     async def live_status(self, room_id: str):
         url = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom"
         params = {
             "room_id": room_id,
         }
-        data = await self.__get(url, params=params)
-        return data
+        return await self.__get(url, params=params)
 
     async def like_medal(self, room_id: str, anchor_id: str, click_time: int = 30):
         url = "https://api.live.bilibili.com/xlive/app-ucenter/v1/like_info_v3/like/likeReportV3"
@@ -174,7 +180,7 @@ class BiliApi:
             "anchor_id": anchor_id,
             "csrf": self.csrf,
         }
-        await self.__post(
+        return await self.__post(
             url,
             data=urlencode(data),
             headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -190,7 +196,7 @@ class BiliApi:
             "fontsize": "25",
             "csrf": self.csrf,
         }
-        await self.__post(
+        return await self.__post(
             url,
             data=urlencode(data),
             headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -203,4 +209,4 @@ class BiliApi:
             "device": f'["{self.buvid}",""]',
             "ts": int(time.time() * 1000),
         }
-        await self.__post(url, params=params)
+        return await self.__post(url, params=params)

@@ -3,7 +3,6 @@
 
 __VERSION__ = "0.0.1"
 import re
-from typing import Iterable
 from loguru import logger
 
 import asyncio
@@ -122,10 +121,8 @@ async def main():
         for r in results:
             if isinstance(r, Exception):
                 messageList.append([f"消息收集异常: {r}"])
-            elif isinstance(r, Iterable) and not isinstance(r, (str, bytes)):
-                messageList.extend(r)
-            else:
-                messageList.append([str(r)])
+            elif r:
+                messageList.append(r)
     return messageList
 
 
