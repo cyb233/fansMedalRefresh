@@ -5,6 +5,9 @@ class BiliApiInterface(ABC):
     """B站API接口定义"""
 
     @abstractmethod
+    async def refresh_cookie(self) -> str: ...
+
+    @abstractmethod
     async def get_user_info(self) -> dict: ...
 
     @abstractmethod

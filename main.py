@@ -114,6 +114,7 @@ async def main():
     try:
         for user_cfg in config.users:
             user = BiliUser(user_cfg, config)
+            await user.check_cookie()
             tasks.append(user.like_and_danmaku())
             lives.append(user.watch_live())
             msgs.append(user.collect_msgs())

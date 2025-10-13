@@ -19,6 +19,16 @@ class BiliUser:
         self.end_msg = ""
         self.api = BiliApiFactory.create(user_cfg, config)
 
+    async def check_cookie(self):
+        logger.info("正在检查cookie")
+        old_cookie = self.user_cfg.cookie
+        new_cookie = await self.api.refresh_cookie()
+        # 写回配置文件
+        if new_cookie != old_cookie:
+            logger.info("cookie更新")
+            self.user_cfg.cookie = new_cookie
+            self.config.replace_cookie(old_cookie, new_cookie)
+
     async def like_and_danmaku(self):
         # 获取个人信息
         await self.api.get_user_info()

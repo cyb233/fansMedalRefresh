@@ -1,8 +1,9 @@
 import asyncio
 import time
+import hmac
+import hashlib
 from urllib.parse import urlencode
 
-from .errors import BiliApiError
 from .common import BiliApiCommon
 from loguru import logger
 
@@ -15,26 +16,63 @@ class BiliApiWeb(BiliApiCommon):
         # 提取关键字段
         self.csrf = self.get_cookie_value("bili_jct")
         self.buvid = self.get_cookie_value("LIVE_BUVID")
+        self.expires = self.get_cookie_value("bili_ticket_expires", "0")
 
         if not self.csrf or not self.buvid:
             raise ValueError("Cookie中缺少必要字段 bili_jct 或 LIVE_BUVID")
 
         self.session.headers.update({"Cookie": user_cfg.cookie})
 
-        expires = self.get_cookie_value("bili_ticket_expires", "0")
         # 10位时间戳转时间
         cookie_expire_time = time.strftime(
-            "%Y-%m-%d %H:%M:%S", time.localtime(int(expires))
+            "%Y-%m-%d %H:%M:%S", time.localtime(int(self.expires))
         )
         logger.info(f"Cookie 预计过期时间：{cookie_expire_time}")
-        # 判断是否已经过期
-        if time.time() > int(expires):
-            logger.error("Cookie已过期，请重新登录")
-            raise BiliApiError(-1, "Cookie已过期，请重新登录")
+
+    @staticmethod
+    def format_string(s: str) -> str:
+        return "".join(chr(ord(c) - 1) for c in s)
+
+    @staticmethod
+    def build_hexsign(ts: int) -> str:
+        key_raw = "YhxToH[2q"
+        key = BiliApiWeb.format_string(key_raw)
+        msg = f"ts{ts}".encode("utf-8")
+        hkey = key.encode("utf-8")
+        return hmac.new(hkey, msg, hashlib.sha256).hexdigest()
 
     async def refresh_cookie(self):
-        """刷新Cookie"""
-        pass  # todo
+        """
+        刷新Cookie
+        bili_ticket=ticket
+        bili_ticket_expires=created_at+ttl
+        """
+        url = (
+            "https://api.bilibili.com/bapis/bilibili.api.ticket.v1.Ticket/GenWebTicket"
+        )
+        # 判断是否已经过期
+        if time.time() > int(self.expires):
+            logger.warning("Cookie已过期，尝试刷新Cookie")
+            ts = int(time.time())
+            params = {
+                "key_id": "ec02",
+                "hexsign": BiliApiWeb.build_hexsign(ts),
+                "context[ts]": ts,
+                "csrf": self.csrf,
+            }
+            data = await self._post(url, params=params)
+            if data.get("success"):
+                ticket = data.get("data", {}).get("ticket", "")
+                created_at = data.get("data", {}).get("created_at", 0)
+                ttl = data.get("data", {}).get("ttl", 0)
+                self.user_cfg.cookie.replace(
+                    self.get_cookie_value("bili_ticket"), ticket
+                )
+                self.user_cfg.cookie.replace(
+                    self.get_cookie_value("bili_ticket_expires"), str(created_at + ttl)
+                )
+                self.expires = str(created_at + ttl)
+        return self.user_cfg.cookie
 
     async def get_user_info(self):
         url = "https://api.bilibili.com/x/web-interface/nav"

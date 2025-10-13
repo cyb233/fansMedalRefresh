@@ -177,6 +177,8 @@ class PushConfig:
 
 @dataclass
 class Config:
+    config_path: str
+
     """主配置类，包含所有配置项"""
 
     users: List[UserConfig]  # 用户配置必须提供，没有默认值
@@ -226,7 +228,7 @@ class Config:
             ]
 
             # 创建配置对象
-            config = cls(users=users)
+            config = cls(config_path=config_path, users=users)
 
             # 更新日志配置
             if "log" in file_config:
@@ -315,3 +317,13 @@ class Config:
             raise
         except Exception as e:
             raise ConfigError(f"加载配置文件失败: {str(e)}")
+
+    def replace_cookie(self, old_cookie: str, new_cookie: str):
+        """直接在配置文件中用字符串替换 cookie"""
+        with open(self.config_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        content = content.replace(old_cookie, new_cookie)
+
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            f.write(content)
