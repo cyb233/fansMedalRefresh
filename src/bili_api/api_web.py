@@ -83,10 +83,9 @@ class BiliApiWeb(BiliApiCommon):
                 ticket = data.data.get("ticket", "")
                 created_at = data.data.get("created_at", 0)
                 ttl = data.data.get("ttl", 0)
-                self.user_cfg.cookie.replace(
+                self.user_cfg.cookie = self.user_cfg.cookie.replace(
                     self.get_cookie_value("bili_ticket"), ticket
-                )
-                self.user_cfg.cookie.replace(
+                ).replace(
                     self.get_cookie_value("bili_ticket_expires"), str(created_at + ttl)
                 )
                 self.expires = str(created_at + ttl)
@@ -94,8 +93,9 @@ class BiliApiWeb(BiliApiCommon):
                 logger.error("Cookie刷新失败")
         # 写回配置文件
         if self.user_cfg.cookie != old_cookie:
-            logger.info("cookie更新")
-            self.config.replace_cookie(old_cookie, self.user_cfg.cookie)
+            logger.info("更新cookie")
+            res = self.config.replace_cookie(old_cookie, self.user_cfg.cookie)
+            logger.info(f"cookie更新 {'成功' if res else '失败'}")
         return BiliApiResult.ok(data)
 
     async def get_user_info(self) -> BiliApiResult[dict]:

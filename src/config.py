@@ -323,12 +323,22 @@ class Config:
         except Exception as e:
             raise ConfigError(f"加载配置文件失败: {str(e)}")
 
-    def replace_cookie(self, old_cookie: str, new_cookie: str):
-        """直接在配置文件中用字符串替换 cookie"""
+    def replace_cookie(self, old_cookie: str, new_cookie: str) -> bool:
+        """直接在配置文件中用字符串替换 cookie
+
+        Returns:
+            bool: True 表示替换成功（找到并替换了旧 cookie），False 表示未找到旧 cookie 或替换失败
+        """
         with open(self.config_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        content = content.replace(old_cookie, new_cookie)
+        if old_cookie not in content:
+            return False  # 未找到旧 cookie
+
+        new_content = content.replace(old_cookie, new_cookie)
 
         with open(self.config_path, "w", encoding="utf-8") as f:
-            f.write(content)
+            f.write(new_content)
+
+        # 再验证一下确实写入成功
+        return new_cookie in new_content

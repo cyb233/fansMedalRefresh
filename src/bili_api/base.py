@@ -15,6 +15,7 @@ from aiohttp import (
 from loguru import logger
 from urllib.parse import urlencode
 from src.bili_api.errors import BiliApiError
+from src.config import Config, UserConfig
 
 T = TypeVar("T")
 
@@ -87,7 +88,7 @@ class BiliApiBase:
     def like_max_time(self):
         return self._like_max_time
 
-    def __init__(self, user_cfg, config, timeout: int = 3):
+    def __init__(self, user_cfg: UserConfig, config: Config, timeout: int = 3):
         self._like_max_time = 30
         self.user_cfg = user_cfg
         self.config = config
