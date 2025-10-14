@@ -71,9 +71,7 @@ async def push_results(messageList: list[list[str]]):
         content = (
             "\n\n".join(
                 (
-                    "_{}_".format(escape_markdown(row[0]))
-                    if row[0]
-                    else row[0]
+                    ("_{}_".format(escape_markdown(row[0])) if row[0] else row[0])
                     + "".join(f"\n> {escape_markdown(line)}" for line in row[1:])
                 )
                 for row in messageList
