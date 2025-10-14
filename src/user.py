@@ -3,6 +3,7 @@
 
 import asyncio
 import random
+import time
 from loguru import logger
 from src.config import Config, UserConfig
 from src.bili_api.factory import BiliApiFactory
@@ -11,6 +12,7 @@ from src.bili_api.factory import BiliApiFactory
 class BiliUser:
 
     def __init__(self, user_cfg: UserConfig, config: Config):
+        self.start_time = time.time()
         self.user_cfg = user_cfg
         self.config = config
         self.live_only_medals = []
@@ -188,6 +190,7 @@ class BiliUser:
         # 关闭会话
         logger.debug("关闭会话")
         await self.api.close()
+        end_time = time.time()
         total = len(self.msgs)
         if total:
             self.end_msg = f"共点亮{total}个粉丝牌"
@@ -195,9 +198,10 @@ class BiliUser:
             self.end_msg = "登陆失败"
         else:
             self.end_msg = "没有需要点亮的粉丝牌"
-
+        exec_time = time.strftime("%H:%M:%S", time.gmtime(end_time - self.start_time))
+        logger.info(f"执行完毕，{self.end_msg}，执行时间{exec_time}")
         return [
             self.title_msg,
             *self.msgs,
-            self.end_msg,
+            self.end_msg + f"，执行时间{exec_time}",
         ]
