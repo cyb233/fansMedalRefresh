@@ -133,9 +133,13 @@ class BiliApiApp(BiliApiCommon):
         return BiliApiResult.ok(self.medals)
 
     async def live_status(self, room_id: str) -> BiliApiResult[LiveStatus]:
-        url = "https://api.live.bilibili.com/xlive/app-room/v1/index/getInfoByRoom"
-        params = get_base_params(self.user_cfg.access_token)
-        live_status_result = await self._get(url, params=SingableDict(params).signed)
+        """
+        获取直播间状态
+        暂未去找接口，先用web的
+        """
+
+        url = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom"
+        live_status_result = await self._get(url, params={"room_id": room_id})
         live_status = LiveStatus(
             room_info=RoomInfo(
                 room_id=live_status_result.data["room_info"]["room_id"],
