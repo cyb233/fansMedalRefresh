@@ -39,9 +39,9 @@ class UserConfig:
         """验证配置"""
         self.api_type = self.api_type.lower()
         if self.api_type == "app" and not self.access_token:
-            raise ConfigError("access_token 不能为空")
+            raise ConfigError("您选择的api_type是app，access_token 不能为空")
         if self.api_type == "web" and not self.cookie:
-            raise ConfigError("cookie 不能为空")
+            raise ConfigError("您选择的api_type是web，cookie 不能为空")
 
 
 @dataclass
