@@ -117,6 +117,9 @@ async def main():
                 continue  # 跳过未启用
             user = BiliUser(user_cfg, config)
             await user.check_login()
+            if config.test:
+                log.info("测试模式，仅执行登录")
+                continue
             tasks.append(user.like_and_danmaku())
             lives.append(user.watch_live())
             msgs.append(user.collect_msgs())

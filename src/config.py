@@ -193,6 +193,7 @@ class Config:
     danmaku: DanmakuConfig = field(default_factory=DanmakuConfig)  # 弹幕配置
     live: LiveConfig = field(default_factory=LiveConfig)  # 观看配置
     push: List[PushConfig] = field(default_factory=list)  # 推送配置列表
+    test: bool = field(default=False)
 
     @classmethod
     def load_config(cls, config_path: str) -> "Config":
@@ -236,6 +237,7 @@ class Config:
 
             # 创建配置对象
             config = cls(config_path=config_path, users=users)
+            config.test = file_config.get("test", config.test)
 
             # 更新日志配置
             if "log" in file_config:
