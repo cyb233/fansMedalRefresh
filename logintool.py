@@ -112,7 +112,12 @@ def is_login(cookies):
 
 
 def login_bili():
-    console.print(Panel("请最大化终端窗口，以确保二维码完整显示", style="bold cyan"))
+    console.print(
+        Panel(
+            "请最大化终端窗口，以确保二维码完整显示，如果二维码显示乱码，请右击标题栏尝试更换字体显示",
+            style="bold cyan",
+        )
+    )
     input("按回车继续...")
 
     qrcode_url, auth_code = get_tv_qrcode_url_and_auth_code()
