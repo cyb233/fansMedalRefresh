@@ -31,7 +31,7 @@ class BiliUser:
         # 获取个人信息
         logger.info("正在获取用户信息")
         await self.api.get_user_info()
-        self.log = self.log.bind(user=self.api.user_info["uname"])
+        self.log = logger.bind(user=self.api.user_info["uname"])
 
     async def like_and_danmaku(self):
         if not self.login_success:
