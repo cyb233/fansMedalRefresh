@@ -124,7 +124,7 @@ class BiliApiBase:
         if data.get("code", 0) != 0:
             raise BiliApiError(
                 data.get("code", -1),
-                f'{method.upper()} {url} {data.get("message", "未知错误")}',
+                f'{method.upper()} {url} {data.get("message", "未知错误")}\n{data}',
             )
         elif "mode_info" in data["data"] and data["message"] != "":  # 发送弹幕时
             logger.warning(
