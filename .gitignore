@@ -1,5 +1,6 @@
 # project specific
 config.json
+login_info.*
 
 # Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode,python
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,python

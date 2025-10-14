@@ -6,12 +6,19 @@
   },
   "users": [
     {
-      "cookie": "your_cookie",
+      "access_token": "your_access_token",
+      "api_type": "app",
       "white_uids": [],
-      "black_uids": [222103174]
+      "black_uids": ["222103174"]
+    },
+    {
+      "enabled": false,
+      "cookie": "your_cookie",
+      "api_type": "web",
+      "white_uids": [],
+      "black_uids": ["222103174"]
     }
   ],
-  "api_type": "app",
   "like": {
     "enabled": true,
     "like_count": 30

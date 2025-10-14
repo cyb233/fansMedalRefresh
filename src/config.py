@@ -28,13 +28,19 @@ class ConfigError(Exception):
 class UserConfig:
     """用户配置"""
 
-    cookie: str  # cookie，必填
-    white_uids: List[int] = field(default_factory=list)  # 白名单用户ID列表
-    black_uids: List[int] = field(default_factory=list)  # 黑名单用户ID列表
+    enabled: bool = field(default=True)
+    cookie: str = field(default="")  # cookie，如选择web则必填
+    access_token: str = field(default="")  # access_token，如选择app则必填
+    api_type: str = field(default="app")  # API类型，可选 app 或 web
+    white_uids: List[str] = field(default_factory=list)  # 白名单用户ID列表
+    black_uids: List[str] = field(default_factory=list)  # 黑名单用户ID列表
 
     def __post_init__(self):
         """验证配置"""
-        if not self.cookie:
+        self.api_type = self.api_type.lower()
+        if self.api_type == "app" and not self.access_token:
+            raise ConfigError("access_token 不能为空")
+        if self.api_type == "web" and not self.cookie:
             raise ConfigError("cookie 不能为空")
 
 
@@ -188,8 +194,6 @@ class Config:
     live: LiveConfig = field(default_factory=LiveConfig)  # 观看配置
     push: List[PushConfig] = field(default_factory=list)  # 推送配置列表
 
-    api_type: str = field(default="app")
-
     @classmethod
     def load_config(cls, config_path: str) -> "Config":
         """
@@ -220,7 +224,10 @@ class Config:
             # 创建用户配置
             users = [
                 UserConfig(
+                    enabled=user.get("enabled", True),
                     cookie=user.get("cookie", ""),
+                    access_token=user.get("access_token", ""),
+                    api_type=user.get("api_type", "app"),
                     white_uids=user.get("white_uids", []),
                     black_uids=user.get("black_uids", []),
                 )
@@ -238,8 +245,6 @@ class Config:
                     level=log_data.get("level", config.log.level),
                     file=log_data.get("file", config.log.file),
                 )
-
-            config.api_type = file_config.get("api_type", "app")
 
             # 更新点赞配置
             if "like" in file_config:

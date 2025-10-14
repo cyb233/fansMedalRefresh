@@ -1,6 +1,10 @@
 # src/bili_api/base.py
+import json
+from loguru import logger
 import asyncio
+from dataclasses import dataclass
 import re
+from typing import TypeVar, Generic
 from aiohttp import (
     ClientSession,
     ClientTimeout,
@@ -11,6 +15,27 @@ from aiohttp import (
 from loguru import logger
 from urllib.parse import urlencode
 from src.bili_api.errors import BiliApiError
+
+T = TypeVar("T")
+
+
+@dataclass
+class BiliApiResult(Generic[T]):
+    success: bool
+    data: T
+
+    def __init__(self, success: bool, data: T = None):
+        self.success = success
+        self.data = data
+        logger.debug(self)
+
+    @staticmethod
+    def ok(data: T = None):
+        return BiliApiResult[T](success=True, data=data)
+
+    @staticmethod
+    def fail(data: T = None):
+        return BiliApiResult[T](success=False, data=data)
 
 
 def retry(tries=3, interval=1):
@@ -58,22 +83,23 @@ class BiliApiBase:
     medals = []
     user_info = {}
 
-    def __init__(self, user_cfg, config, timeout: int = 10):
+    @property
+    def like_max_time(self):
+        return self._like_max_time
+
+    def __init__(self, user_cfg, config, timeout: int = 3):
+        self._like_max_time = 30
         self.user_cfg = user_cfg
         self.config = config
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
-        }
 
         connector = TCPConnector(force_close=True)
         self.session = ClientSession(
             connector=connector,
             timeout=ClientTimeout(total=timeout),
             trust_env=True,
-            headers=self.headers,
         )
 
-    def get_cookie_value(self, key: str, default: str = '') -> str:
+    def get_cookie_value(self, key: str, default: str = "") -> str:
         pattern = rf"{re.escape(key)}=([^;]+)"
         match = re.search(pattern, self.user_cfg.cookie)
         return match.group(1) if match else default
@@ -82,25 +108,25 @@ class BiliApiBase:
         if self.session:
             await self.session.close()
 
-    async def _check_response(self, resp: ClientResponse) -> dict:
+    async def _check_response(self, resp: ClientResponse) -> BiliApiResult:
         try:
             data = await resp.json()
         except Exception as e:
             text = await resp.text()
             raise BiliApiError(-1, f"响应解析失败: {text}", e)
-
-        logger.trace(data)
+        logger.trace(resp.request_info)
+        logger.trace(json.dumps(data))
         if data.get("code", 0) != 0:
             raise BiliApiError(data.get("code", -1), data.get("message", "未知错误"))
         elif "mode_info" in data["data"] and data["message"] != "":  # 发送弹幕时
             logger.warning(
                 f"发送弹幕失败: {data.get('message', '未知错误') + '，是不是风控了？'}"
             )
-            return {"success": False}
-        return {"data": data.get("data"), "success": True}
+            return BiliApiResult.fail()
+        return BiliApiResult.ok(data.get("data"))
 
     @retry()
-    async def _get(self, url: str, **kwargs) -> dict:
+    async def _get(self, url: str, **kwargs) -> BiliApiResult:
         try:
             async with self.session.get(url, **kwargs) as resp:
                 return await self._check_response(resp)
@@ -108,7 +134,7 @@ class BiliApiBase:
             raise BiliApiError(-1, str(e), e)
 
     @retry()
-    async def _post(self, url: str, **kwargs) -> dict:
+    async def _post(self, url: str, **kwargs) -> BiliApiResult:
         try:
             async with self.session.post(url, **kwargs) as resp:
                 return await self._check_response(resp)

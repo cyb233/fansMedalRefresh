@@ -113,8 +113,9 @@ async def main():
     msgs = []
     try:
         for user_cfg in config.users:
+            if not user_cfg.enabled: continue # 跳过未启用
             user = BiliUser(user_cfg, config)
-            await user.check_cookie()
+            await user.check_login()
             tasks.append(user.like_and_danmaku())
             lives.append(user.watch_live())
             msgs.append(user.collect_msgs())
