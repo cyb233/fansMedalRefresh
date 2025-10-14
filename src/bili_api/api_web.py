@@ -101,7 +101,6 @@ class BiliApiWeb(BiliApiCommon):
     async def get_user_info(self) -> BiliApiResult[dict]:
         url = "https://api.bilibili.com/x/web-interface/nav"
         data = await self._get(url)
-        logger.debug(f"获取用户信息: {data}")
         self.user_info = data.data
         return data
 

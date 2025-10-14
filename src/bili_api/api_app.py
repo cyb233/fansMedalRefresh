@@ -4,6 +4,8 @@ import random
 import time
 from urllib.parse import urlencode
 import uuid
+
+from .errors import BiliApiError
 from .common import BiliApiCommon
 from typing import Union
 from hashlib import md5
@@ -91,7 +93,10 @@ class BiliApiApp(BiliApiCommon):
         """
         url = "https://app.bilibili.com/x/v2/account/mine"
         params = get_base_params(self.user_cfg.access_token)
-        return await self._get(url, params=SingableDict(params).signed)
+        data = await self._get(url, params=SingableDict(params).signed)
+        if data.data["mid"] == 0:
+            data.success = False
+        return data
 
     async def get_user_info(self) -> BiliApiResult[dict]:
         url = "https://api.live.bilibili.com/xlive/app-ucenter/v1/user/get_user_info"
