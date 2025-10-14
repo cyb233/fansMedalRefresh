@@ -1,7 +1,8 @@
 # src/bili_api/base.py
 import json
-from loguru import logger
+import uuid
 import asyncio
+from loguru import logger
 from dataclasses import dataclass
 import re
 from typing import TypeVar, Generic
@@ -12,10 +13,9 @@ from aiohttp import (
     ClientResponse,
     TCPConnector,
 )
-from loguru import logger
-from urllib.parse import urlencode
 from src.bili_api.errors import BiliApiError
 from src.config import Config, UserConfig
+from .entity import UserInfo, FansMedal, LiveStatus
 
 T = TypeVar("T")
 
@@ -81,8 +81,8 @@ def retry(tries=3, interval=1):
 class BiliApiBase:
     """B站API基础类，负责会话管理与通用请求"""
 
-    medals = []
-    user_info = {}
+    medals: list[FansMedal] = []
+    user_info: UserInfo
 
     @property
     def like_max_time(self):
@@ -92,6 +92,8 @@ class BiliApiBase:
         self._like_max_time = 30
         self.user_cfg = user_cfg
         self.config = config
+
+        self.uuids = [str(uuid.uuid4()) for _ in range(2)]
 
         connector = TCPConnector(force_close=True)
         self.session = ClientSession(

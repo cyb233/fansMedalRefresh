@@ -3,13 +3,13 @@ import math
 import random
 import time
 from urllib.parse import urlencode
-import uuid
 
 from .errors import BiliApiError
 from .common import BiliApiCommon
 from typing import Union
 from hashlib import md5
 from .base import BiliApiResult
+from .entity import UserInfo, FansMedal, LiveStatus, Medal, RoomInfo
 
 
 class Crypto:
@@ -59,9 +59,9 @@ def randomString(length: int = 16) -> str:
     )
 
 
-def get_base_params(access_token: str, **kwargs) -> dict:
+def get_base_params(access_key: str, **kwargs) -> dict:
     return {
-        "access_token": access_token,
+        "access_key": access_key,
         "actionKey": "appkey",
         "appkey": Crypto.APPKEY,
         "ts": int(time.time()),
@@ -77,7 +77,6 @@ class BiliApiApp(BiliApiCommon):
 
     def __init__(self, user_cfg, config):
         super().__init__(user_cfg, config)
-        self.uuids = [str(uuid.uuid4()) for _ in range(2)]
         self.session.headers.update(
             {
                 "User-Agent": "Mozilla/5.0 BiliDroid/6.73.1 (bbcallen@gmail.com) os/android model/Mi 10 Pro mobi_app/android build/6731100 channel/xiaomi innerVer/6731110 osVer/12 network/2"
@@ -87,47 +86,68 @@ class BiliApiApp(BiliApiCommon):
             "Content-Type": "application/x-www-form-urlencoded",
         }
 
-    async def refresh_login(self) -> BiliApiResult[dict]:
+    async def refresh_login(self) -> BiliApiResult[None]:
         """
         登录验证
         """
         url = "https://app.bilibili.com/x/v2/account/mine"
         params = get_base_params(self.user_cfg.access_token)
         data = await self._get(url, params=SingableDict(params).signed)
-        if data.data["mid"] == 0:
+        self.user_info = UserInfo(mid=data.data["mid"], uname=data.data["name"])
+        if int(self.user_info.mid) == 0:
             data.success = False
-        return data
+        return BiliApiResult(data.success)
 
-    async def get_user_info(self) -> BiliApiResult[dict]:
-        url = "https://api.live.bilibili.com/xlive/app-ucenter/v1/user/get_user_info"
-        params = get_base_params(self.user_cfg.access_token)
-        return await self._get(url, params=SingableDict(params).signed)
+    async def get_user_info(self) -> BiliApiResult[UserInfo]:
+        return BiliApiResult.ok(self.user_info)
 
-    async def get_fans_medals(self) -> BiliApiResult[list[dict]]:
+    async def get_fans_medals(self) -> BiliApiResult[list[FansMedal]]:
         url = "https://api.live.bilibili.com/xlive/app-ucenter/v1/fansMedal/panel"
         params = get_base_params(self.user_cfg.access_token, page=1, page_size=50)
-
         self.medals.clear()
-
+        medals: list[dict] = []
         while True:
             data = await self._get(url, params=SingableDict(params).signed)
             if data.data.get("special_list"):
-                self.medals.extend(data.data["special_list"])
+                medals.extend(data.data["special_list"])
             if not data.data.get("list"):
                 break
-            self.medals.extend(data.data["list"])
+            medals.extend(data.data["list"])
             params["page"] += 1
             await asyncio.sleep(1)
+        self.medals = [
+            FansMedal(
+                medal=Medal(
+                    name=m["medal"]["medal_name"], is_lighted=m["medal"]["is_lighted"]
+                ),
+                room_info=RoomInfo(
+                    room_id=m["room_info"]["room_id"],
+                    live_status=m["room_info"]["living_status"],
+                ),
+                anchor_info=UserInfo(
+                    mid=m["medal"]["target_id"], uname=m["anchor_info"]["nick_name"]
+                ),
+            )
+            for m in medals
+        ]
         return BiliApiResult.ok(self.medals)
 
-    async def live_status(self, room_id: str) -> BiliApiResult[dict]:
+    async def live_status(self, room_id: str) -> BiliApiResult[LiveStatus]:
         url = "https://api.live.bilibili.com/xlive/app-room/v1/index/getInfoByRoom"
         params = get_base_params(self.user_cfg.access_token)
-        return await self._get(url, params=SingableDict(params).signed)
+        live_status_result = await self._get(url, params=SingableDict(params).signed)
+        live_status = LiveStatus(
+            room_info=RoomInfo(
+                room_id=live_status_result.data["room_info"]["room_id"],
+                live_status=live_status_result.data["room_info"]["live_status"],
+            ),
+            new_switch_info=live_status_result.data["new_switch_info"],
+        )
+        return BiliApiResult.ok(live_status)
 
     async def like_medal(
         self, room_id: str, anchor_id: str, click_time: int = 30
-    ) -> BiliApiResult[dict]:
+    ) -> BiliApiResult[None]:
         url = "https://api.live.bilibili.com/xlive/app-ucenter/v1/like_info_v3/like/likeReportV3"
         for i in range(math.ceil(click_time / self.like_max_time)):
             part_click = min(self.like_max_time, click_time - i * self.like_max_time)
@@ -145,7 +165,7 @@ class BiliApiApp(BiliApiCommon):
             )
         return BiliApiResult.ok()
 
-    async def send_danmaku(self, room_id: str, msg: str) -> BiliApiResult[dict]:
+    async def send_danmaku(self, room_id: str, msg: str) -> BiliApiResult[None]:
         url = "https://api.live.bilibili.com/xlive/app-room/v1/dM/sendmsg"
         params = get_base_params(self.user_cfg.access_token)
         data = {
@@ -164,7 +184,7 @@ class BiliApiApp(BiliApiCommon):
 
     async def live_heartbeat(
         self, room_id: str, up_id: str, minutes: int
-    ) -> BiliApiResult[dict]:
+    ) -> BiliApiResult[None]:
         url = "https://live-trace.bilibili.com/xlive/data-interface/v1/heartbeat/mobileHeartBeat"
         today_timestamp = int(
             time.mktime(

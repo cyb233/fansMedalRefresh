@@ -8,6 +8,7 @@ from urllib.parse import urlencode
 from .base import BiliApiResult
 from .common import BiliApiCommon
 from loguru import logger
+from .entity import UserInfo, FansMedal, LiveStatus, Medal, RoomInfo
 
 
 def format_string(s: str) -> str:
@@ -59,7 +60,7 @@ class BiliApiWeb(BiliApiCommon):
         hkey = key.encode("utf-8")
         return hmac.new(hkey, msg, hashlib.sha256).hexdigest()
 
-    async def refresh_login(self) -> BiliApiResult[dict]:
+    async def refresh_login(self) -> BiliApiResult[None]:
         """
         刷新Cookie
         bili_ticket=ticket
@@ -98,35 +99,58 @@ class BiliApiWeb(BiliApiCommon):
             logger.info(f"cookie更新 {'成功' if res else '失败'}")
         return BiliApiResult.ok(data)
 
-    async def get_user_info(self) -> BiliApiResult[dict]:
+    async def get_user_info(self) -> BiliApiResult[UserInfo]:
         url = "https://api.bilibili.com/x/web-interface/nav"
         data = await self._get(url)
-        self.user_info = data.data
-        return data
+        self.user_info = UserInfo(mid=data.data["mid"], uname=data.data["uname"])
+        return BiliApiResult.ok(self.user_info)
 
-    async def get_fans_medals(self) -> BiliApiResult[list[dict]]:
+    async def get_fans_medals(self) -> BiliApiResult[list[FansMedal]]:
         url = "https://api.live.bilibili.com/xlive/app-ucenter/v1/fansMedal/panel"
         params = {"page": 1, "page_size": 50}
         self.medals.clear()
-
+        medals: list[dict] = []
         while True:
             data = await self._get(url, params=params)
             if data.data.get("special_list"):
-                self.medals.extend(data.data["special_list"])
+                medals.extend(data.data["special_list"])
             if not data.data.get("list"):
                 break
-            self.medals.extend(data.data["list"])
+            medals.extend(data.data["list"])
             params["page"] += 1
             await asyncio.sleep(1)
+        self.medals = [
+            FansMedal(
+                medal=Medal(
+                    name=m["medal"]["medal_name"], is_lighted=m["medal"]["is_lighted"]
+                ),
+                room_info=RoomInfo(
+                    room_id=m["room_info"]["room_id"],
+                    live_status=m["room_info"]["living_status"],
+                ),
+                anchor_info=UserInfo(
+                    mid=m["medal"]["target_id"], uname=m["anchor_info"]["nick_name"]
+                ),
+            )
+            for m in medals
+        ]
         return BiliApiResult.ok(self.medals)
 
-    async def live_status(self, room_id: str) -> BiliApiResult[dict]:
+    async def live_status(self, room_id: str) -> BiliApiResult[LiveStatus]:
         url = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom"
-        return await self._get(url, params={"room_id": room_id})
+        live_status_result = await self._get(url, params={"room_id": room_id})
+        live_status = LiveStatus(
+            room_info=RoomInfo(
+                room_id=live_status_result.data["room_info"]["room_id"],
+                live_status=live_status_result.data["room_info"]["live_status"],
+            ),
+            new_switch_info=live_status_result.data["new_switch_info"],
+        )
+        return BiliApiResult.ok(live_status)
 
     async def like_medal(
         self, room_id: str, anchor_id: str, click_time: int = 30
-    ) -> BiliApiResult[dict]:
+    ) -> BiliApiResult[None]:
         url = "https://api.live.bilibili.com/xlive/app-ucenter/v1/like_info_v3/like/likeReportV3"
         for i in range(math.ceil(click_time / self.like_max_time)):
             part_click = min(self.like_max_time, click_time - i * self.like_max_time)
@@ -144,7 +168,7 @@ class BiliApiWeb(BiliApiCommon):
             )
         return BiliApiResult.ok()
 
-    async def send_danmaku(self, room_id: str, msg: str) -> BiliApiResult[dict]:
+    async def send_danmaku(self, room_id: str, msg: str) -> BiliApiResult[None]:
         url = "https://api.live.bilibili.com/msg/send"
         data = {
             "msg": msg,
@@ -162,11 +186,11 @@ class BiliApiWeb(BiliApiCommon):
 
     async def live_heartbeat(
         self, room_id: str, up_id: str, minutes: int
-    ) -> BiliApiResult[dict]:
+    ) -> BiliApiResult[None]:
         url = "https://live-trace.bilibili.com/xlive/data-interface/v1/x25Kn/E"
         params = {
             "id": f"[0,0,{minutes},{room_id}]",
-            "device": f'["{self.buvid}",""]',
+            "device": f'["{self.buvid}","{self.uuids[0]}"]',
             "ts": int(time.time() * 1000),
         }
         return await self._post(url, params=params)

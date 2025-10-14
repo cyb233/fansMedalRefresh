@@ -16,7 +16,7 @@
    git clone https://github.com/cyb233/fansMedalRefresh.git
    ```
 
-2. 安装[Python](https://www.python.org/downloads/)（建议 3.x，未在 2.x 中进行过测试）
+2. 安装[Python](https://www.python.org/downloads/)（建议 3.10+）
 3. 复制配置文件示例`config.example.json`并重命名为`config.json`
 4. 根据[配置说明](#配置说明)正确修改`config.json`
 5. 安装依赖
