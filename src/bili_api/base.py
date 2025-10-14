@@ -119,8 +119,11 @@ class BiliApiBase:
             raise BiliApiError(-1, f"响应解析失败: {text}", e)
         logger.trace(resp.request_info)
         logger.trace(json.dumps(data))
+        url = resp.url.human_repr()
         if data.get("code", 0) != 0:
-            raise BiliApiError(data.get("code", -1), data.get("message", "未知错误"))
+            raise BiliApiError(
+                data.get("code", -1), f'{url} {data.get("message", "未知错误")}'
+            )
         elif "mode_info" in data["data"] and data["message"] != "":  # 发送弹幕时
             logger.warning(
                 f"发送弹幕失败: {data.get('message', '未知错误') + '，是不是风控了？'}"
