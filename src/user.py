@@ -77,7 +77,7 @@ class BiliUser:
                 )
                 # 判断能否点赞或弹幕点亮
                 new_switch_info = live_status.new_switch_info
-                if not new_switch_info["room-danmaku-editor"]:
+                if not new_switch_info.get("room-danmaku-editor", 1):
                     self.log.info(
                         f"{medal.medal.name} 无法点赞或发送弹幕，尝试切换至观看点亮"
                     )
