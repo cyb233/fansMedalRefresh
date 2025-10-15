@@ -135,17 +135,24 @@ class BiliApiApp(BiliApiCommon):
     async def live_status(self, room_id: str) -> BiliApiResult[LiveStatus]:
         """
         获取直播间状态
-        暂未去找接口，先用web的
+        该接口无需登录但无new_switch_info信息
+        todo 后续应替换为 app api
         """
 
-        url = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom"
-        live_status_result = await self._get(url, params={"room_id": room_id})
+        url = "https://api.live.bilibili.com/room/v1/Room/get_info"
+        live_status_result = await self._get(
+            url,
+            params={"room_id": room_id},
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+            },
+        )
         live_status = LiveStatus(
             room_info=RoomInfo(
-                room_id=live_status_result.data["room_info"]["room_id"],
-                live_status=live_status_result.data["room_info"]["live_status"],
+                room_id=live_status_result.data["room_id"],
+                live_status=live_status_result.data["live_status"],
             ),
-            new_switch_info=live_status_result.data["new_switch_info"],
+            new_switch_info={},
         )
         return BiliApiResult.ok(live_status)
 
