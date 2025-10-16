@@ -186,7 +186,7 @@ class BiliApiApp(BiliApiCommon):
             "color": "16777215",
             "fontsize": "25",
         }
-        return await self._get(
+        return await self._post(
             url,
             params=SingableDict(params).signed,
             data=data,
@@ -242,7 +242,7 @@ class BiliApiApp(BiliApiCommon):
                 "client_ts": f"{now_timestamp}",
             }
         )
-        return await self._get(
+        return await self._post(
             url,
             data=SingableDict(params).signed,
             headers={**self.session.headers, **self.x_www_form_urlencoded},
