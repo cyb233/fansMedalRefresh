@@ -22,6 +22,8 @@ class BiliUser:
         self.end_msg = ""
         self.api = BiliApiFactory.create(user_cfg, config)
         self.login_success = False
+        self.need_light = 0
+        self.light_success = 0
 
     async def check_login(self):
         logger.info("正在检查登陆状态")
@@ -61,6 +63,7 @@ class BiliUser:
             self.log.trace(f"检查粉丝牌 {medal.medal.name}")
             # 检查粉丝牌点亮状态
             if not medal.medal.is_lighted:
+                self.need_light += 1
                 self.log.info(
                     f"粉丝牌 {medal.medal.name} 需要点亮({index + 1}/{len(self.api.medals)})"
                 )
@@ -92,6 +95,7 @@ class BiliUser:
                             ruid,
                             self.config.like.like_count,
                         )
+                        self.light_success += 1
                         self.msgs.append(
                             f"点赞{self.config.like.like_count}次点亮up {medal.anchor_info.uname} 的粉丝牌 {medal.medal.name}"
                         )
@@ -124,6 +128,8 @@ class BiliUser:
                                     self.config.danmaku.max_interval,
                                 )
                             )
+                        if successTimes == self.config.danmaku.danmaku_count:
+                            self.light_success += 1
                         self.msgs.append(
                             f"成功发送 {successTimes}/{self.config.danmaku.danmaku_count} 条弹幕点亮up {medal.anchor_info.uname} 的粉丝牌 {medal.medal.name}"
                         )
@@ -189,7 +195,7 @@ class BiliUser:
         end_time = time.time()
         total = len(self.msgs)
         if total:
-            self.end_msg = f"共点亮{total}个粉丝牌"
+            self.end_msg = f"共点亮{self.light_success + len(self.live_only_medals)}/{total}个粉丝牌"
         elif not self.login_success:
             self.end_msg = "登陆失败"
         else:
