@@ -90,21 +90,22 @@ class BiliUser:
                     if self.config.like.enabled:
                         self.log.info(f"{medal.medal.name} 开始点赞")
                         # 开播中，使用点赞点亮，点赞次数按配置，时间间隔按配置随机秒
-                        await self.api.like_medal(
+                        res = await self.api.like_medal(
                             medal.room_info.room_id,
                             ruid,
                             self.config.like.like_count,
                         )
-                        self.light_success += 1
+                        if res.success:
+                            self.light_success += 1
                         self.msgs.append(
-                            f"点赞{self.config.like.like_count}次点亮up {medal.anchor_info.uname} 的粉丝牌 {medal.medal.name}"
+                            f"点赞{self.config.like.like_count}次点亮up {medal.anchor_info.uname} 的粉丝牌 {medal.medal.name} {'成功' if res.success else '失败'}"
                         )
                 else:
                     if self.config.danmaku.enabled:
                         self.log.info(f"{medal.medal.name} 开始发送弹幕")
                         # 未开播，使用弹幕点亮，弹幕数量按配置，内容从配置列表随机
                         successTimes = 0
-                        for i in range(self.config.danmaku.danmaku_count):
+                        for i in range(self.config.danmaku.danmaku_count * 2):
                             self.log.debug(f"第{i + 1}次...")
                             # 随机顺序，默认 15条弹幕+10个表情+正反顺序 可以有300个不重样的
                             danmaku = random.choice(self.config.danmaku.danmaku_list)
@@ -122,13 +123,15 @@ class BiliUser:
                             )
                             if res.success:
                                 successTimes += 1
+                            if successTimes >= self.config.danmaku.danmaku_count:
+                                break
                             await asyncio.sleep(
                                 random.randint(
                                     self.config.danmaku.min_interval,
                                     self.config.danmaku.max_interval,
                                 )
                             )
-                        if successTimes == self.config.danmaku.danmaku_count:
+                        if successTimes >= self.config.danmaku.danmaku_count:
                             self.light_success += 1
                         self.msgs.append(
                             f"成功发送 {successTimes}/{self.config.danmaku.danmaku_count} 条弹幕点亮up {medal.anchor_info.uname} 的粉丝牌 {medal.medal.name}"
