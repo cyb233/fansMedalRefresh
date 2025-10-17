@@ -22,6 +22,7 @@ class BiliUser:
         self.end_msg = ""
         self.api = BiliApiFactory.create(user_cfg, config)
         self.login_success = False
+        self.total_need_light = 0
         self.need_light = [0, 0, 0]
         self.light_success = [0, 0, 0]
 
@@ -63,6 +64,7 @@ class BiliUser:
             self.log.trace(f"检查粉丝牌 {medal.medal.name}")
             # 检查粉丝牌点亮状态
             if not medal.medal.is_lighted:
+                self.total_need_light += 1
                 self.log.info(
                     f"粉丝牌 {medal.medal.name} 需要点亮({index + 1}/{len(self.api.medals)})"
                 )
@@ -199,11 +201,8 @@ class BiliUser:
         self.log.debug("关闭会话")
         await self.api.close()
         end_time = time.time()
-        total = len(self.msgs)
-        if total:
-            self.end_msg = (
-                f"共点亮 {self.light_success}/{self.need_light}/{total} 个粉丝牌"
-            )
+        if self.total_need_light:
+            self.end_msg = f"共点亮 {'+'.join(str(e) for e in self.light_success)} / {'+'.join(str(e) for e in self.need_light)} / {self.total_need_light} 个粉丝牌"
         elif not self.login_success:
             self.end_msg = "登陆失败"
         else:
