@@ -22,8 +22,8 @@ class BiliUser:
         self.end_msg = ""
         self.api = BiliApiFactory.create(user_cfg, config)
         self.login_success = False
-        self.need_light = 0
-        self.light_success = 0
+        self.need_light = [0, 0, 0]
+        self.light_success = [0, 0, 0]
 
     async def check_login(self):
         logger.info("正在检查登陆状态")
@@ -63,7 +63,6 @@ class BiliUser:
             self.log.trace(f"检查粉丝牌 {medal.medal.name}")
             # 检查粉丝牌点亮状态
             if not medal.medal.is_lighted:
-                self.need_light += 1
                 self.log.info(
                     f"粉丝牌 {medal.medal.name} 需要点亮({index + 1}/{len(self.api.medals)})"
                 )
@@ -85,9 +84,11 @@ class BiliUser:
                         f"{medal.medal.name} 无法点赞或发送弹幕，尝试切换至观看点亮"
                     )
                     self.live_only_medals.append(medal)
+                    self.need_light[2] += 1
                     continue
                 if live_status.room_info.live_status == 1:
                     if self.config.like.enabled:
+                        self.need_light[0] += 1
                         self.log.info(f"{medal.medal.name} 开始点赞")
                         # 开播中，使用点赞点亮，点赞次数按配置，时间间隔按配置随机秒
                         res = await self.api.like_medal(
@@ -96,12 +97,13 @@ class BiliUser:
                             self.config.like.like_count,
                         )
                         if res.success:
-                            self.light_success += 1
+                            self.light_success[0] += 1
                         self.msgs.append(
                             f"点赞{self.config.like.like_count}次点亮up {medal.anchor_info.uname} 的粉丝牌 {medal.medal.name} {'成功' if res.success else '失败'}"
                         )
                 else:
                     if self.config.danmaku.enabled:
+                        self.need_light[1] += 1
                         self.log.info(f"{medal.medal.name} 开始发送弹幕")
                         # 未开播，使用弹幕点亮，弹幕数量按配置，内容从配置列表随机
                         successTimes = 0
@@ -132,7 +134,7 @@ class BiliUser:
                                 )
                             )
                         if successTimes >= self.config.danmaku.danmaku_count:
-                            self.light_success += 1
+                            self.light_success[1] += 1
                         self.msgs.append(
                             f"成功发送 {successTimes}/{self.config.danmaku.danmaku_count} 条弹幕点亮up {medal.anchor_info.uname} 的粉丝牌 {medal.medal.name}"
                         )
@@ -186,6 +188,7 @@ class BiliUser:
                 self.msgs.append(
                     f"观看{self.config.danmaku.danmaku_count}分钟直播点亮up {medal.anchor_info.uname} 的粉丝牌 {medal.medal.name}"
                 )
+                self.light_success[2] += 1
             else:
                 self.live_msgs.append(
                     f"{medal.anchor_info.uname} 的粉丝牌 {medal.medal.name} 已观看{watch_time}分钟直播"
@@ -198,7 +201,9 @@ class BiliUser:
         end_time = time.time()
         total = len(self.msgs)
         if total:
-            self.end_msg = f"共点亮{self.light_success + len(self.live_only_medals)}/{total}个粉丝牌"
+            self.end_msg = (
+                f"共点亮 {self.light_success}/{self.need_light}/{total} 个粉丝牌"
+            )
         elif not self.login_success:
             self.end_msg = "登陆失败"
         else:
