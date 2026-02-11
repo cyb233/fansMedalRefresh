@@ -110,6 +110,12 @@ class BiliUser:
                         # 未开播，使用弹幕点亮，弹幕数量按配置，内容从配置列表随机
                         successTimes = 0
                         for i in range(self.config.danmaku.danmaku_count * 2):
+                            await asyncio.sleep(
+                                random.randint(
+                                    self.config.danmaku.min_interval,
+                                    self.config.danmaku.max_interval,
+                                )
+                            )
                             self.log.debug(f"第{i + 1}次...")
                             # 随机顺序，默认 15条弹幕+10个表情+正反顺序 可以有300个不重样的
                             danmaku = random.choice(self.config.danmaku.danmaku_list)
@@ -129,12 +135,6 @@ class BiliUser:
                                 successTimes += 1
                             if successTimes >= self.config.danmaku.danmaku_count:
                                 break
-                            await asyncio.sleep(
-                                random.randint(
-                                    self.config.danmaku.min_interval,
-                                    self.config.danmaku.max_interval,
-                                )
-                            )
                         if successTimes >= self.config.danmaku.danmaku_count:
                             self.light_success[1] += 1
                         self.msgs.append(
